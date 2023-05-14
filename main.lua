@@ -1,9 +1,9 @@
 -- Parameters for shroud
-r_shroud = 22
+r_shroud = 24
 h_shroud = 2
-h_blade = 7
+h_blade = 5
 
--- Bezier control point for centerline
+-- Bezier control point for blade centerline
 p0_x = 0      -- Start angle
 p0_y = 5      -- Start radius
 w1 = 20
@@ -23,6 +23,17 @@ p3_y_r = 1    -- Thickness at end point
 w2_r = 10
 alpha2_r = 10
 
+-- Parameters for casing
+r_outlet = 7
+r_inlet = 5
+r0_volute = 25
+alpha = 0.001
+r_center = 20
+r_shaft = 5
+casing_thickness = 1
+n_points_casing = 31
+n_points_fillet = 31
+
 
 function linspace(start,stop,n_points)
 	-- return [n] = {start ... stop}
@@ -35,6 +46,20 @@ function linspace(start,stop,n_points)
 
 	return ret
 end
+
+function iniArr(row,col,val)
+	local ret = {}
+
+	for i = 1,row do  
+		ret[i] = {}
+		for j = 1,col do  
+          ret[i][j] = val
+		end
+	end
+
+	return ret
+end
+
 
 function ones(row,col)
 	local ret = {}
@@ -86,30 +111,32 @@ function drawCircle3(r,pos,n_vector,start_angle,end_angle,n_points)
     --Gives the coordinates of the circle of radius "r" normal to the 
     -- vector "n_vector" with center at position "pos" from starting angle to ending angle in 3D space
     -- n_points is the number of support points between start and stop angle
-    -- return [3][n_points] = {{X1 ... Xn},{Y1 ... Yn},{Z1 ... Zn}}
-    local x = {}
-    local y = {}
-    local z = {}
+    -- return [n_points] = {v(x1 y1 z1),...., v(xn yn zn)}
+    --local x = {}
+    --local y = {}
+    --local z = {}
     local phi = math.atan2(n_vector[2],n_vector[1]) --Azimuth angle, between X and Y
     local theta = math.atan2(math.sqrt(n_vector[1]^2 + n_vector[2]^2),n_vector[3]) -- Zenith angle, between Z and XY
     
     -- Looping step size
     local t = linspace(start_angle,end_angle,n_points)
     
+    local xyz = {}
+
     -- Calculate 3D coordinates of points on the circle
     for n=1,n_points do
-
+    xyz[n] = v(
 		--X
-        x[n]= pos[1]- r*(math.cos(t[n])*math.sin(phi) + math.sin(t[n])*math.cos(theta)*math.cos(phi) )
+        pos[1]- r*(math.cos(t[n])*math.sin(phi) + math.sin(t[n])*math.cos(theta)*math.cos(phi) ),
         
         --Y
-        y[n]= pos[2]+ r*(math.cos(t[n])*math.cos(phi) - math.sin(t[n])*math.cos(theta)*math.sin(phi) )
+        pos[2]+ r*(math.cos(t[n])*math.cos(phi) - math.sin(t[n])*math.cos(theta)*math.sin(phi) ),
         
         --Z
-        z[n]= pos[3]+ r*math.sin(t[n])*math.sin(theta)
+        pos[3]+ r*math.sin(t[n])*math.sin(theta))
 
     end
-    local xyz = {x,y,z}
+
     return xyz
 end
 
@@ -187,20 +214,21 @@ function createImpeller(r_shroud, h_shroud, h_blade, centerline, blade_thickness
 
 end
 
-function createCasing(r_outlet, r_inlet, r0_volute, alpha, clearance, casing_thickness, n_points_casing, n_points_fillet)
+function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, casing_thickness, n_points_casing, n_points_fillet)
 	-- r_outlet/ r_inlet: radius of the outlet/inlet
 	-- r0_volute, alpha: in the function r_volute(i) = r0_volute*exp(alpha*theta(i))
-	-- clearance: clearance between the impeller shroud and the volute
+	-- r_inner: radius of the center hub
 	-- casing_thickness: casing thickness
 	-- n_points_casing: no of support points for the casing outer shape
 	-- n_points_fillet: no of support points for the fillet of the casing
 
 	local r_volute_outer = {}
 	local r_volute_centerline = {}
-	local theta = linspace(0,2*math.pi,n_points_casing)
+	local theta = linspace(0,360,n_points_casing)
 	local xy_volute_offset = {}
 
 
+	-- Make the outer shell
 	for i = 1, n_points_casing do
 		r_volute_outer[i] = r0_volute*math.exp(alpha*theta[i])
 
@@ -216,30 +244,135 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, clearance, casing_thi
 
 	for i = 1, n_points_casing do
 		-- normal vector
-		local n_vect = {-math.sin(theta[i]), math.cos(theta[i]), 0}
+		local n_vect = {-math.sin(math.rad(theta[i])), math.cos(math.rad(theta[i])), 0}
 		local center = {xy_volute_centerline[1][i], xy_volute_centerline[2][i], 0} -- local centerpoint
 		
-		xyz_volute_inner[i] = {}
-		xyz_volute_outer[i] = {}
+		xyz_volute_inner[i] = drawCircle3(r_outlet,center,n_vect,
+								3/2*math.pi,math.pi/2,n_points_fillet)
+		xyz_volute_outer[i] = drawCircle3(r_outlet+casing_thickness,center,n_vect,
+								math.pi/2,3/2*math.pi,n_points_fillet)
 		
-		xyz_volute_inner[i] = drawCircle3(r_outlet,center,n_vect,math.pi/2,
-										  3/2*math.pi,n_points_fillet)
-		xyz_volute_outer[i] = drawCircle3(r_outlet+casing_thickness,center,n_vect,math.pi/2,
-										  3/2*math.pi,n_points_fillet)
-		print(tostring(xyz_volute_inner[i][1]))
 	end
 
-	local xyz_volute_contour = {}
+
+	-- Make the center hub
+	-- Make array r_center to comply with the input type
+	local r_center_arr = {}
 
 	for i = 1, n_points_casing do
-		for j = 1, n_points_fillet do
-			xyz_volute_contour[i] = v(xyz_volute_inner[i][1][j],
-								   	  xyz_volute_inner[i][2][j],
-								      xyz_volute_inner[i][3][j])
-		end
+		r_center_arr[i] = r_center
 	end
 
-	emit(section_extrude(xyz_volute_contour))
+	xy_centerhub_line = pol2cart(theta,r_center_arr) 
+	local xyz_center_inner = {}
+	local xyz_center_outer = {}
+
+	for i = 1, n_points_casing do
+		local n_vect = {-math.sin(math.rad(theta[i])), math.cos(math.rad(theta[i])), 0}
+		local center = {xy_centerhub_line[1][i], xy_centerhub_line[2][i], 0} -- local centerpoint
+
+		xyz_center_inner[i] = drawCircle3(r_outlet,center,n_vect,
+								math.pi/2,math.pi/4,n_points_fillet)
+		xyz_center_outer[i] = drawCircle3(r_outlet+casing_thickness,center,n_vect,
+								math.pi/4,math.pi/2,n_points_fillet)
+
+	end
+
+
+	-- Make the shaft hole
+	-- Make array r_shaft to comply with the input type
+	local r_shaft_arr = {}
+
+	for i = 1, n_points_casing do
+		r_shaft_arr[i] = r_shaft
+	end
+
+	xy_shaft_line = pol2cart(theta,r_shaft_arr) 
+	local xyz_shaft_inner = {}
+	local xyz_shaft_outer = {}
+
+	for i = 1, n_points_casing do
+		xyz_shaft_inner[i] = v(xy_shaft_line[1][i],
+							   xy_shaft_line[2][i],
+							   -r_outlet)
+		xyz_shaft_outer[i] = v(xy_shaft_line[1][i],
+							   xy_shaft_line[2][i],
+							   -r_outlet-casing_thickness)
+
+	end
+
+
+	-- Make the inlet (eye)
+	-- Make array r_inlet to comply with the input type
+	local r_inlet_arr = {}
+
+	for i = 1, n_points_casing do
+		r_inlet_arr[i] = r_inlet
+	end
+
+	xy_inlet_line = pol2cart(theta,r_inlet_arr) 
+	local xyz_inlet_inner = {}
+	local xyz_inlet_outer = {}
+
+	for i = 1, n_points_casing do
+		xyz_inlet_inner[i] = v(xy_inlet_line[1][i],
+							   xy_inlet_line[2][i],
+							   xyz_center_inner[i][n_points_fillet].z)
+		xyz_inlet_outer[i] = v(xy_inlet_line[1][i],
+							   xy_inlet_line[2][i],
+							   xyz_center_outer[i][1].z)
+
+	end
+
+	-- Make final contour by connecting all the contours
+	local xyz_volute_contour = {}
+	xy_shaft_line = pol2cart(theta,r_center_arr) 
+
+
+	for i = 1,n_points_casing do
+		xyz_volute_contour[i] = {}
+
+		-- Outer line of the center hub
+		for j = 1,#xyz_center_outer do
+			xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_center_outer[i][j]
+		end
+
+		-- Outer line of the volute shell
+		for j = 1,#xyz_volute_outer do
+			xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_volute_outer[i][j]
+		end
+
+		-- Outer line of the shaft hole
+		xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_shaft_outer[i]
+
+		-- Inner line of the shaft hole
+		xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_shaft_inner[i]
+
+		-- Inner line of the volute shell
+		for j = 1,#xyz_volute_inner do
+			xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_volute_inner[i][j]
+		end
+
+		-- Inner line of the center hub
+		for j = 1,#xyz_center_inner do
+			xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_center_inner[i][j]
+		end
+
+		-- Inner line of the inlet
+		xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_inlet_inner[i]
+
+		-- Outer line of the inlet
+		xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_inlet_outer[i]
+
+	end
+
+	display = translate(0,0,r_outlet/2)*sections_extrude(xyz_volute_contour)
+
+    -- Create a cut object to show the model
+	cut = translate(-25,-25,-20)*cube(50,50,50)
+
+
+	emit(difference(display,cut),5)
 end
 
 
@@ -247,11 +380,16 @@ end
 
 -------------------------------------------------------------------
 -- Main part to create the model
---center_line_polar = Bezier(p0_x,p0_y,w1,alpha1,p3_x,p3_y,w2,alpha2)
---center_line_cart = pol2cart(center_line_polar[1], center_line_polar[2])
 
---blade_thickness_polar = Bezier(p0_x_r,p0_y_r,w1_r,alpha1_r,p3_x_r,p3_y_r,w2_r,alpha2_r)
+--Impeller
+center_line_polar = Bezier(p0_x,p0_y,w1,alpha1,p3_x,p3_y,w2,alpha2)
+center_line_cart = pol2cart(center_line_polar[1], center_line_polar[2])
+
+blade_thickness_polar = Bezier(p0_x_r,p0_y_r,w1_r,alpha1_r,p3_x_r,p3_y_r,w2_r,alpha2_r)
 
 
---createImpeller(r_shroud,h_shroud,h_blade,center_line_cart,blade_thickness_polar)
-createCasing(5, 3, 3, 0.05, 2, 1, 21, 21)
+createImpeller(r_shroud,h_shroud,h_blade,center_line_cart,blade_thickness_polar)
+
+
+-- Casing
+createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, casing_thickness, n_points_casing, n_points_fillet)
