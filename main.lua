@@ -90,11 +90,11 @@ function drawCircle3(r,pos,n_vector,start_angle,end_angle,n_points)
     local x = {}
     local y = {}
     local z = {}
-    phi = math.atan2(n_vector[2],n_vector[1]) --Azimuth angle, between X and Y
-    theta = math.atan2(math.sqrt(n_vector[1]^2 + n_vector[2]^2),n_vector[3]) -- Zenith angle, between Z and XY
+    local phi = math.atan2(n_vector[2],n_vector[1]) --Azimuth angle, between X and Y
+    local theta = math.atan2(math.sqrt(n_vector[1]^2 + n_vector[2]^2),n_vector[3]) -- Zenith angle, between Z and XY
     
     -- Looping step size
-    t = linspace(start_angle,end_angle,n_points)
+    local t = linspace(start_angle,end_angle,n_points)
     
     -- Calculate 3D coordinates of points on the circle
     for n=1,n_points do
@@ -107,6 +107,7 @@ function drawCircle3(r,pos,n_vector,start_angle,end_angle,n_points)
         
         --Z
         z[n]= pos[3]+ r*math.sin(t[n])*math.sin(theta)
+
     end
     local xyz = {x,y,z}
     return xyz
@@ -131,36 +132,23 @@ function Bezier(p0_x,p0_y,w1,alpha1,p3_x,p3_y,w2,alpha2)
 
 	local i = 1 -- looping counter
 
-	-- Don't know why loop stops at 0.99, not 1
-	for t = 0,1,0.01 do
+	-- Loop t = 0:0.01:1
+	for t = 0,1.01,0.01 do
 
 		--X
 		XY[1][i] = p0_x*(  -(t^3) + 3*(t^2) - 3*t + 1)
 				 + p1_x*( 3*(t^3) - 6*(t^2) + 3*t    )
 				 + p2_x*(-3*(t^3) + 3*(t^2)          )
-				 + p3_x*(   (t^3) 				 )
+				 + p3_x*(   (t^3) 				 	 )
 
 		--Y
 		XY[2][i] = p0_y*(  -(t^3) + 3*(t^2) - 3*t + 1)
 				 + p1_y*( 3*(t^3) - 6*(t^2) + 3*t    )
 				 + p2_y*(-3*(t^3) + 3*(t^2)          )
-				 + p3_y*(   (t^3) 				 )
+				 + p3_y*(   (t^3) 				 	 )
 
-		i = i + 1;
+		i = i + 1
 	end
-
-	-- So manually calculate t = 1 as a workaround
-	t = 1
-	XY[1][101] = p0_x*(  -t^3 + 3*t^2 - 3*t + 1)
-			 + p1_x*( 3*t^3 - 6*t^2 + 3*t    )
-			 + p2_x*(-3*t^3 + 3*t^2          )
-			 + p3_x*(   t^3 				 )
-
-	--Y
-	XY[2][101] = p0_y*(  -t^3 + 3*t^2 - 3*t + 1)
-			   + p1_y*( 3*t^3 - 6*t^2 + 3*t    )
-			   + p2_y*(-3*t^3 + 3*t^2          )
-			   + p3_y*(   t^3 				 )
 
     return XY
 end
@@ -173,8 +161,10 @@ function createImpeller(r_shroud, h_shroud, h_blade, centerline, blade_thickness
 	-- Shroud
 	local shroud = cylinder(r_shroud, h_shroud)
 	emit(shroud)
-	local blade_fraction = {}
+
+
 	-- Impeller
+	local blade_fraction = {}
 	for i = 1,#centerline[1]-1 do
 		local x1 = centerline[1][i]
 		local y1 = centerline[2][i]
@@ -185,24 +175,83 @@ function createImpeller(r_shroud, h_shroud, h_blade, centerline, blade_thickness
 		local r2 = blade_thickness[2][i+1]
 
 
-		cyl_1 = translate(x1,y1,h_shroud)*cylinder(r1, h_blade)
-		cyl_2 = translate(x2,y2,h_shroud)*cylinder(r2, h_blade)
+		local cyl_1 = translate(x1,y1,h_shroud)*cylinder(r1, h_blade)
+		local cyl_2 = translate(x2,y2,h_shroud)*cylinder(r2, h_blade)
 
 		blade_fraction[i] = convex_hull(union(cyl_1,cyl_2))
 
 	end
 
-	blade = union(blade_fraction)
+	local blade = union(blade_fraction)
 	emit(blade,7)
 
 end
 
+function createCasing(r_outlet, r_inlet, r0_volute, alpha, clearance, casing_thickness, n_points_casing, n_points_fillet)
+	-- r_outlet/ r_inlet: radius of the outlet/inlet
+	-- r0_volute, alpha: in the function r_volute(i) = r0_volute*exp(alpha*theta(i))
+	-- clearance: clearance between the impeller shroud and the volute
+	-- casing_thickness: casing thickness
+	-- n_points_casing: no of support points for the casing outer shape
+	-- n_points_fillet: no of support points for the fillet of the casing
+
+	local r_volute_outer = {}
+	local r_volute_centerline = {}
+	local theta = linspace(0,2*math.pi,n_points_casing)
+	local xy_volute_offset = {}
 
 
-center_line_polar = Bezier(p0_x,p0_y,w1,alpha1,p3_x,p3_y,w2,alpha2)
-center_line_cart = pol2cart(center_line_polar[1], center_line_polar[2])
+	for i = 1, n_points_casing do
+		r_volute_outer[i] = r0_volute*math.exp(alpha*theta[i])
 
-blade_thickness_polar = Bezier(p0_x_r,p0_y_r,w1_r,alpha1_r,p3_x_r,p3_y_r,w2_r,alpha2_r)
+		-- offset to the centerline so that the fillet lay on r_volute 
+		r_volute_centerline[i] = r_volute_outer[i] - r_outlet
+	end
+
+    -- convert r_volute_offset to Cartesian, [2][i] = {{X...},{Y...}}
+	xy_volute_centerline = pol2cart(theta,r_volute_centerline) 
+
+	local xyz_volute_inner = {}
+	local xyz_volute_outer = {}
+
+	for i = 1, n_points_casing do
+		-- normal vector
+		local n_vect = {-math.sin(theta[i]), math.cos(theta[i]), 0}
+		local center = {xy_volute_centerline[1][i], xy_volute_centerline[2][i], 0} -- local centerpoint
+		
+		xyz_volute_inner[i] = {}
+		xyz_volute_outer[i] = {}
+		
+		xyz_volute_inner[i] = drawCircle3(r_outlet,center,n_vect,math.pi/2,
+										  3/2*math.pi,n_points_fillet)
+		xyz_volute_outer[i] = drawCircle3(r_outlet+casing_thickness,center,n_vect,math.pi/2,
+										  3/2*math.pi,n_points_fillet)
+		print(tostring(xyz_volute_inner[i][1]))
+	end
+
+	local xyz_volute_contour = {}
+
+	for i = 1, n_points_casing do
+		for j = 1, n_points_fillet do
+			xyz_volute_contour[i] = v(xyz_volute_inner[i][1][j],
+								   	  xyz_volute_inner[i][2][j],
+								      xyz_volute_inner[i][3][j])
+		end
+	end
+
+	emit(section_extrude(xyz_volute_contour))
+end
 
 
-createImpeller(r_shroud,h_shroud,h_blade,center_line_cart,blade_thickness_polar)
+
+
+-------------------------------------------------------------------
+-- Main part to create the model
+--center_line_polar = Bezier(p0_x,p0_y,w1,alpha1,p3_x,p3_y,w2,alpha2)
+--center_line_cart = pol2cart(center_line_polar[1], center_line_polar[2])
+
+--blade_thickness_polar = Bezier(p0_x_r,p0_y_r,w1_r,alpha1_r,p3_x_r,p3_y_r,w2_r,alpha2_r)
+
+
+--createImpeller(r_shroud,h_shroud,h_blade,center_line_cart,blade_thickness_polar)
+createCasing(5, 3, 3, 0.05, 2, 1, 21, 21)
