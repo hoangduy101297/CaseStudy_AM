@@ -1,38 +1,38 @@
 -- Parameters for shroud
 r_shroud = 24
 h_shroud = 2
-h_blade = 5
+h_blade  = 7
 
 -- Bezier control point for blade centerline
-p0_x = 0      -- Start angle
-p0_y = 5      -- Start radius
-w1 = 20
-alpha1 = 15
-p3_x = 330    -- Wrap angle
-p3_y = 20     -- 
-w2 = 50
-alpha2 = -10
+p0_x 	= 0      -- Start angle
+p0_y 	= 5      -- Start radius
+w1 		= 20
+alpha1 	= 15
+p3_x 	= 330    -- Wrap angle
+p3_y 	= 20     -- 
+w2 		= 50
+alpha2 	= -10
 
 -- Bezier control point for blade thickness
-p0_x_r = 0     -- Start angle
-p0_y_r = 0.5     -- thickness at start point
-w1_r = 20
-alpha1_r = 2
-p3_x_r = p3_x  -- Stop angle, be same as p3_x
-p3_y_r = 1    -- Thickness at end point
-w2_r = 10
-alpha2_r = 10
+p0_x_r 		= 0     -- Start angle
+p0_y_r 		= 1     -- thickness at start point
+w1_r 		= 20
+alpha1_r 	= 0
+p3_x_r 		= p3_x  -- Stop angle, be same as p3_x
+p3_y_r 		= 1    -- Thickness at end point
+w2_r 		= 10
+alpha2_r 	= 0
 
 -- Parameters for casing
-r_outlet = 7
-r_inlet = 5
-r0_volute = 25
-alpha = 0.001
-r_center = 20
-r_shaft = 5
-casing_thickness = 1
-n_points_casing = 31
-n_points_fillet = 31
+r_outlet 	= 8
+r_inlet 	= 5
+r0_volute 	= 30
+alpha 		= 0.001
+r_center 	= 20
+r_shaft		= 5
+casing_thickness 	= 1
+n_points_casing 	= 31
+n_points_fillet 	= 31
 
 
 function linspace(start,stop,n_points)
@@ -42,46 +42,6 @@ function linspace(start,stop,n_points)
 
 	for n = 1,n_points do  
 		ret[n] = start + step*(n-1)
-	end
-
-	return ret
-end
-
-function iniArr(row,col,val)
-	local ret = {}
-
-	for i = 1,row do  
-		ret[i] = {}
-		for j = 1,col do  
-          ret[i][j] = val
-		end
-	end
-
-	return ret
-end
-
-
-function ones(row,col)
-	local ret = {}
-
-	for i = 1,row do  
-		ret[i] = {}
-		for j = 1,col do  
-          ret[i][j] = 1
-		end
-	end
-
-	return ret
-end
-
-function zeros(row,col)
-	local ret = {}
-
-	for i= 1,row do  
-		ret[i] = {}
-		for j= 1,col do  
-		ret[i][j] = 0
-		end
 	end
 
 	return ret
@@ -227,7 +187,7 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 	local theta = linspace(0,360,n_points_casing)
 	local xy_volute_offset = {}
 
-
+	--------------------------------------------
 	-- Make the outer shell
 	for i = 1, n_points_casing do
 		r_volute_outer[i] = r0_volute*math.exp(alpha*theta[i])
@@ -237,7 +197,7 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 	end
 
     -- convert r_volute_offset to Cartesian, [2][i] = {{X...},{Y...}}
-	xy_volute_centerline = pol2cart(theta,r_volute_centerline) 
+	local xy_volute_centerline = pol2cart(theta,r_volute_centerline) 
 
 	local xyz_volute_inner = {}
 	local xyz_volute_outer = {}
@@ -254,7 +214,7 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 		
 	end
 
-
+	--------------------------------------------
 	-- Make the center hub
 	-- Make array r_center to comply with the input type
 	local r_center_arr = {}
@@ -263,7 +223,7 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 		r_center_arr[i] = r_center
 	end
 
-	xy_centerhub_line = pol2cart(theta,r_center_arr) 
+	local xy_centerhub_line = pol2cart(theta,r_center_arr) 
 	local xyz_center_inner = {}
 	local xyz_center_outer = {}
 
@@ -278,7 +238,7 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 
 	end
 
-
+	--------------------------------------------
 	-- Make the shaft hole
 	-- Make array r_shaft to comply with the input type
 	local r_shaft_arr = {}
@@ -287,7 +247,7 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 		r_shaft_arr[i] = r_shaft
 	end
 
-	xy_shaft_line = pol2cart(theta,r_shaft_arr) 
+	local xy_shaft_line = pol2cart(theta,r_shaft_arr) 
 	local xyz_shaft_inner = {}
 	local xyz_shaft_outer = {}
 
@@ -301,7 +261,7 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 
 	end
 
-
+	--------------------------------------------
 	-- Make the inlet (eye)
 	-- Make array r_inlet to comply with the input type
 	local r_inlet_arr = {}
@@ -310,7 +270,7 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 		r_inlet_arr[i] = r_inlet
 	end
 
-	xy_inlet_line = pol2cart(theta,r_inlet_arr) 
+	local xy_inlet_line = pol2cart(theta,r_inlet_arr) 
 	local xyz_inlet_inner = {}
 	local xyz_inlet_outer = {}
 
@@ -321,58 +281,75 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 		xyz_inlet_outer[i] = v(xy_inlet_line[1][i],
 							   xy_inlet_line[2][i],
 							   xyz_center_outer[i][1].z)
-
 	end
 
+	--------------------------------------------
 	-- Make final contour by connecting all the contours
 	local xyz_volute_contour = {}
-	xy_shaft_line = pol2cart(theta,r_center_arr) 
-
 
 	for i = 1,n_points_casing do
 		xyz_volute_contour[i] = {}
 
 		-- Outer line of the center hub
 		for j = 1,#xyz_center_outer do
-			xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_center_outer[i][j]
+			table.insert(xyz_volute_contour[i], xyz_center_outer[i][j]) 
 		end
 
 		-- Outer line of the volute shell
 		for j = 1,#xyz_volute_outer do
-			xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_volute_outer[i][j]
+			table.insert(xyz_volute_contour[i], xyz_volute_outer[i][j])
 		end
 
 		-- Outer line of the shaft hole
-		xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_shaft_outer[i]
+		table.insert(xyz_volute_contour[i], xyz_shaft_outer[i]) 
 
 		-- Inner line of the shaft hole
-		xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_shaft_inner[i]
+		table.insert(xyz_volute_contour[i], xyz_shaft_inner[i]) 
 
 		-- Inner line of the volute shell
 		for j = 1,#xyz_volute_inner do
-			xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_volute_inner[i][j]
+			table.insert(xyz_volute_contour[i], xyz_volute_inner[i][j])
 		end
 
 		-- Inner line of the center hub
 		for j = 1,#xyz_center_inner do
-			xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_center_inner[i][j]
+			table.insert(xyz_volute_contour[i], xyz_center_inner[i][j]) 
 		end
 
 		-- Inner line of the inlet
-		xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_inlet_inner[i]
+		table.insert(xyz_volute_contour[i],xyz_inlet_inner[i]) 
 
 		-- Outer line of the inlet
-		xyz_volute_contour[i][(#xyz_volute_contour[i])+1] = xyz_inlet_outer[i]
+		table.insert(xyz_volute_contour[i], xyz_inlet_outer[i]) 
 
 	end
 
-	display = translate(0,0,r_outlet/2)*sections_extrude(xyz_volute_contour)
+	local volute = sections_extrude(xyz_volute_contour)
 
+	--------------------------------------------
+	---- Make the small shell at the inlet -----
+	local inlet_shell = translate(0,0,xyz_inlet_outer[1].z)*difference(cylinder(r_inlet+1,3),cylinder(r_inlet,3))
+	--------------------------------------------
+	---- Make the closing plate ----------------
+	local closing_plate_contour = {}
+		
+	for i = 1,n_points_fillet do
+		table.insert(closing_plate_contour, xyz_volute_outer[1][i])
+	end
+	
+	for i = n_points_fillet,1,-1 do
+		table.insert(closing_plate_contour, xyz_volute_outer[#xyz_volute_outer][i])
+	end
+
+	local closing_plate = linear_extrude(v(0,1,0),closing_plate_contour)
+
+	--------------------------------------------
     -- Create a cut object to show the model
-	cut = translate(-25,-25,-20)*cube(50,50,50)
-
-
-	emit(difference(display,cut),5)
+	local cut = translate(25,25,5)*cube(50,50,50)
+	-- translate align the impeller to the middle of the casing space
+	-- original calculation z = r - ((1+sin(pi/4))-(h_shroud+h_blade)/2)
+	local final_volute = translate(0,0,0.15*r_outlet+0.5*(h_shroud+h_blade))*union{volute, closing_plate, inlet_shell}
+	emit(difference(final_volute,cut),5)
 end
 
 
