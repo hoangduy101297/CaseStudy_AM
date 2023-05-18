@@ -15,24 +15,34 @@ alpha2 	= -10
 
 -- Bezier control point for blade thickness
 p0_x_r 		= 0     -- Start angle
-p0_y_r 		= 1     -- thickness at start point
-w1_r 		= 20
-alpha1_r 	= 0
+p0_y_r 		= 2     -- thickness at start point
+w1_r 		= 5
+alpha1_r 	= 5
 p3_x_r 		= p3_x  -- Stop angle, be same as p3_x
 p3_y_r 		= 1    -- Thickness at end point
 w2_r 		= 10
 alpha2_r 	= 0
 
+-- Bezier control point for casing
+p0_x_z 		= 0     -- Start angle
+p0_y_z 		= 30    -- Radius at start point
+w1_z 		= 20
+alpha1_z 	= 0
+p3_x_z 		= 360  -- Stop angle
+p3_y_z 		= 40     -- Radius at end point
+w2_z 		= 20
+alpha2_z 	= 0
+
 -- Parameters for casing
-r_outlet 	= 8
+r_outlet 	= 10
 r_inlet 	= 5
 r0_volute 	= 30
 alpha 		= 0.001
 r_center 	= 20
 r_shaft		= 5
 casing_thickness 	= 1
-n_points_casing 	= 31
-n_points_fillet 	= 31
+n_points_casing 	= 51
+n_points_fillet 	= 51
 
 
 function linspace(start,stop,n_points)
@@ -120,7 +130,7 @@ function Bezier(p0_x,p0_y,w1,alpha1,p3_x,p3_y,w2,alpha2)
 	local i = 1 -- looping counter
 
 	-- Loop t = 0:0.01:1
-	for t = 0,1.01,0.01 do
+	for t = 0,1.01,0.02 do
 
 		--X
 		XY[1][i] = p0_x*(  -(t^3) + 3*(t^2) - 3*t + 1)
@@ -182,22 +192,38 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 	-- n_points_casing: no of support points for the casing outer shape
 	-- n_points_fillet: no of support points for the fillet of the casing
 
-	local r_volute_outer = {}
-	local r_volute_centerline = {}
 	local theta = linspace(0,360,n_points_casing)
-	local xy_volute_offset = {}
 
 	--------------------------------------------
-	-- Make the outer shell
-	for i = 1, n_points_casing do
-		r_volute_outer[i] = r0_volute*math.exp(alpha*theta[i])
+	-- Make the outer shell from exponential function
+	-- local r_volute_outer = {}
+	-- local r_volute_centerline = {}
+
+	-- for i = 1, n_points_casing do
+	-- 	r_volute_outer[i] = r0_volute*math.exp(alpha*theta[i])
+
+	-- 	-- offset to the centerline so that the fillet lay on r_volute 
+	-- 	r_volute_centerline[i] = r_volute_outer[i] - r_outlet
+	-- end
+
+ --    -- convert r_volute_offset to Cartesian, [2][i] = {{X...},{Y...}}
+	-- local xy_volute_centerline = pol2cart(theta,r_volute_centerline) 
+
+	--------------------------------------------
+	-- Make the outer shell from Bezier curve
+	local r_volute_outer = {}
+	local r_volute_centerline = {}
+
+	r_volute_outer = Bezier(p0_x_z,p0_y_z,w1_z,alpha1_z,p3_x_z,p3_y_z,w2_z,alpha2_z)
+	for i = 1, #r_volute_outer[1] do
 
 		-- offset to the centerline so that the fillet lay on r_volute 
-		r_volute_centerline[i] = r_volute_outer[i] - r_outlet
+		r_volute_centerline[i] = r_volute_outer[2][i] - r_outlet
 	end
+	local xy_volute_centerline = pol2cart(r_volute_outer[1], r_volute_centerline)
+	--------------------------------------------
 
-    -- convert r_volute_offset to Cartesian, [2][i] = {{X...},{Y...}}
-	local xy_volute_centerline = pol2cart(theta,r_volute_centerline) 
+
 
 	local xyz_volute_inner = {}
 	local xyz_volute_outer = {}
@@ -327,8 +353,8 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 	local volute = sections_extrude(xyz_volute_contour)
 
 	--------------------------------------------
-	---- Make the small shell at the inlet -----
-	local inlet_shell = translate(0,0,xyz_inlet_outer[1].z)*difference(cylinder(r_inlet+1,3),cylinder(r_inlet,3))
+	---- Make the small pipe at the inlet -----
+	local inlet_pipe = translate(0,0,xyz_inlet_outer[1].z)*difference(cylinder(r_inlet+1,5),cylinder(r_inlet,5))
 	--------------------------------------------
 	---- Make the closing plate ----------------
 	local closing_plate_contour = {}
@@ -348,8 +374,9 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 	local cut = translate(25,25,5)*cube(50,50,50)
 	-- translate align the impeller to the middle of the casing space
 	-- original calculation z = r - ((1+sin(pi/4))-(h_shroud+h_blade)/2)
-	local final_volute = translate(0,0,0.15*r_outlet+0.5*(h_shroud+h_blade))*union{volute, closing_plate, inlet_shell}
-	emit(difference(final_volute,cut),5)
+	local final_volute = translate(0,0,0.15*r_outlet+0.5*(h_shroud+h_blade))*union{volute, closing_plate, inlet_pipe}
+	--emit(difference(final_volute,cut),5)
+	emit(final_volute,5)
 end
 
 
