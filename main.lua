@@ -1,7 +1,7 @@
 -- Parameters for shroud
 r_shroud = 24
 h_shroud = 2
-h_blade  = 7
+h_blade  = 10
 
 -- Bezier control point for blade centerline
 p0_x 	= 0      -- Start angle
@@ -24,18 +24,18 @@ w2_r 		= 10
 alpha2_r 	= 0
 
 -- Bezier control point for casing
-p0_x_z 		= 0     -- Start angle
+p0_x_z 		= 180     -- Start angle
 p0_y_z 		= 30    -- Radius at start point
 w1_z 		= 20
-alpha1_z 	= 0
-p3_x_z 		= 360  -- Stop angle
+alpha1_z 	= 30
+p3_x_z 		= -180  -- Stop angle
 p3_y_z 		= 40     -- Radius at end point
 w2_z 		= 20
 alpha2_z 	= 0
 
 -- Parameters for casing
 r_outlet 	= 10
-r_inlet 	= 5
+r_inlet 	= 8
 r0_volute 	= 30
 alpha 		= 0.001
 r_center 	= 20
@@ -192,25 +192,25 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 	-- n_points_casing: no of support points for the casing outer shape
 	-- n_points_fillet: no of support points for the fillet of the casing
 
-	local theta = linspace(0,360,n_points_casing)
+	local theta = linspace(180,-180,n_points_casing)
 
 	--------------------------------------------
-	-- Make the outer shell from exponential function
+	-- Make the volute from exponential function
 	-- local r_volute_outer = {}
 	-- local r_volute_centerline = {}
 
 	-- for i = 1, n_points_casing do
-	-- 	r_volute_outer[i] = r0_volute*math.exp(alpha*theta[i])
+	-- 	r_volute_outer[i] = r0_volute*math.exp(alpha*(180-theta[i]))
 
-	-- 	-- offset to the centerline so that the fillet lay on r_volute 
-	-- 	r_volute_centerline[i] = r_volute_outer[i] - r_outlet
+	-- 	-- offset to the centerline so that the fillet lay on r_volute_outer 
+	-- 	r_volute_centerline[i] = r_volute_outer[i] - r_outlet-casing_thickness
 	-- end
 
  --    -- convert r_volute_offset to Cartesian, [2][i] = {{X...},{Y...}}
 	-- local xy_volute_centerline = pol2cart(theta,r_volute_centerline) 
 
 	--------------------------------------------
-	-- Make the outer shell from Bezier curve
+	-- Make the volute from Bezier curve
 	local r_volute_outer = {}
 	local r_volute_centerline = {}
 
@@ -223,8 +223,6 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 	local xy_volute_centerline = pol2cart(r_volute_outer[1], r_volute_centerline)
 	--------------------------------------------
 
-
-
 	local xyz_volute_inner = {}
 	local xyz_volute_outer = {}
 
@@ -233,150 +231,77 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 		local n_vect = {-math.sin(math.rad(theta[i])), math.cos(math.rad(theta[i])), 0}
 		local center = {xy_volute_centerline[1][i], xy_volute_centerline[2][i], 0} -- local centerpoint
 		
+		-- Original outlet radius
 		xyz_volute_inner[i] = drawCircle3(r_outlet,center,n_vect,
 								3/2*math.pi,math.pi/2,n_points_fillet)
+		-- Add 2 more points in the center, to create a solid body starting from the center
+		table.insert(xyz_volute_inner[i],v(0,0,r_outlet))
+		table.insert(xyz_volute_inner[i],v(0,0,-r_outlet))
+
+
+		-- Outer shell adding the thickness
 		xyz_volute_outer[i] = drawCircle3(r_outlet+casing_thickness,center,n_vect,
-								math.pi/2,3/2*math.pi,n_points_fillet)
-		
+								3/2*math.pi,math.pi/2,n_points_fillet)
+		-- Add 2 more points in the center, to create a solid body starting from the center
+		table.insert(xyz_volute_outer[i],v(0,0,r_outlet+casing_thickness))
+		table.insert(xyz_volute_outer[i],v(0,0,-r_outlet-casing_thickness))
+
 	end
+	volute_outer = sections_extrude(xyz_volute_outer)
+	volute_inner = sections_extrude(xyz_volute_inner)
+	volute_main_part = difference(volute_outer,volute_inner)
 
 	--------------------------------------------
-	-- Make the center hub
-	-- Make array r_center to comply with the input type
-	local r_center_arr = {}
+	----------- Make the outlet ----------------
+	outlet_outer = translate(-r_volute_centerline[#r_volute_centerline],0,0)*rotate(-90,0,0)*cylinder(r_outlet+casing_thickness,50)
+	outlet_end = translate(-r_volute_centerline[#r_volute_centerline],50,0)*rotate(-90,0,0)*cylinder(1.5*(r_outlet+casing_thickness),3)
+	outlet_inner = translate(-r_volute_centerline[#r_volute_centerline],0,0)*rotate(-90,0,0)*cylinder(r_outlet,500)
+	outlet = difference(union(outlet_outer,outlet_end),outlet_inner)
 
-	for i = 1, n_points_casing do
-		r_center_arr[i] = r_center
-	end
 
-	local xy_centerhub_line = pol2cart(theta,r_center_arr) 
-	local xyz_center_inner = {}
-	local xyz_center_outer = {}
+	-- Matching the outlet with the volute
+	part1 = difference(volute_main_part,outlet_inner)
 
-	for i = 1, n_points_casing do
-		local n_vect = {-math.sin(math.rad(theta[i])), math.cos(math.rad(theta[i])), 0}
-		local center = {xy_centerhub_line[1][i], xy_centerhub_line[2][i], 0} -- local centerpoint
+	part2 = difference(outlet,volute_inner)
 
-		xyz_center_inner[i] = drawCircle3(r_outlet,center,n_vect,
-								math.pi/2,math.pi/4,n_points_fillet)
-		xyz_center_outer[i] = drawCircle3(r_outlet+casing_thickness,center,n_vect,
-								math.pi/4,math.pi/2,n_points_fillet)
-
-	end
+	volute_with_outlet = union(part1,part2)
 
 	--------------------------------------------
 	-- Make the shaft hole
-	-- Make array r_shaft to comply with the input type
-	local r_shaft_arr = {}
+	shaft_hole = translate(0,0,-casing_thickness-r_outlet)*cylinder(r_shaft,casing_thickness)
 
-	for i = 1, n_points_casing do
-		r_shaft_arr[i] = r_shaft
-	end
-
-	local xy_shaft_line = pol2cart(theta,r_shaft_arr) 
-	local xyz_shaft_inner = {}
-	local xyz_shaft_outer = {}
-
-	for i = 1, n_points_casing do
-		xyz_shaft_inner[i] = v(xy_shaft_line[1][i],
-							   xy_shaft_line[2][i],
-							   -r_outlet)
-		xyz_shaft_outer[i] = v(xy_shaft_line[1][i],
-							   xy_shaft_line[2][i],
-							   -r_outlet-casing_thickness)
-
-	end
 
 	--------------------------------------------
-	-- Make the inlet (eye)
-	-- Make array r_inlet to comply with the input type
-	local r_inlet_arr = {}
-
-	for i = 1, n_points_casing do
-		r_inlet_arr[i] = r_inlet
-	end
-
-	local xy_inlet_line = pol2cart(theta,r_inlet_arr) 
-	local xyz_inlet_inner = {}
-	local xyz_inlet_outer = {}
-
-	for i = 1, n_points_casing do
-		xyz_inlet_inner[i] = v(xy_inlet_line[1][i],
-							   xy_inlet_line[2][i],
-							   xyz_center_inner[i][n_points_fillet].z)
-		xyz_inlet_outer[i] = v(xy_inlet_line[1][i],
-							   xy_inlet_line[2][i],
-							   xyz_center_outer[i][1].z)
-	end
+	-- Make the inlet
+	inlet_inner = translate(0,0,r_outlet)*cylinder(r_inlet,8+casing_thickness)
+	inlet_outer = translate(0,0,r_outlet+casing_thickness)*cylinder(r_inlet+casing_thickness,5)
+	inlet_end = translate(0,0,r_outlet+casing_thickness+5)*cylinder((r_inlet+casing_thickness)*1.5,3)
+	inlet = difference(union(inlet_end,inlet_outer),inlet_inner)
 
 	--------------------------------------------
-	-- Make final contour by connecting all the contours
-	local xyz_volute_contour = {}
-
-	for i = 1,n_points_casing do
-		xyz_volute_contour[i] = {}
-
-		-- Outer line of the center hub
-		for j = 1,#xyz_center_outer do
-			table.insert(xyz_volute_contour[i], xyz_center_outer[i][j]) 
-		end
-
-		-- Outer line of the volute shell
-		for j = 1,#xyz_volute_outer do
-			table.insert(xyz_volute_contour[i], xyz_volute_outer[i][j])
-		end
-
-		-- Outer line of the shaft hole
-		table.insert(xyz_volute_contour[i], xyz_shaft_outer[i]) 
-
-		-- Inner line of the shaft hole
-		table.insert(xyz_volute_contour[i], xyz_shaft_inner[i]) 
-
-		-- Inner line of the volute shell
-		for j = 1,#xyz_volute_inner do
-			table.insert(xyz_volute_contour[i], xyz_volute_inner[i][j])
-		end
-
-		-- Inner line of the center hub
-		for j = 1,#xyz_center_inner do
-			table.insert(xyz_volute_contour[i], xyz_center_inner[i][j]) 
-		end
-
-		-- Inner line of the inlet
-		table.insert(xyz_volute_contour[i],xyz_inlet_inner[i]) 
-
-		-- Outer line of the inlet
-		table.insert(xyz_volute_contour[i], xyz_inlet_outer[i]) 
-
-	end
-
-	local volute = sections_extrude(xyz_volute_contour)
-
-	--------------------------------------------
-	---- Make the small pipe at the inlet -----
-	local inlet_pipe = translate(0,0,xyz_inlet_outer[1].z)*difference(cylinder(r_inlet+1,5),cylinder(r_inlet,5))
-	--------------------------------------------
-	---- Make the closing plate ----------------
-	local closing_plate_contour = {}
-		
-	for i = 1,n_points_fillet do
-		table.insert(closing_plate_contour, xyz_volute_outer[1][i])
-	end
-	
-	for i = n_points_fillet,1,-1 do
-		table.insert(closing_plate_contour, xyz_volute_outer[#xyz_volute_outer][i])
-	end
+	---- Make a plate to fill the gap
+	---- between volute and outlet -------------
+	local closing_plate_contour = xyz_volute_outer[#xyz_volute_outer]
 
 	local closing_plate = linear_extrude(v(0,1,0),closing_plate_contour)
+	closing_plate = difference{closing_plate,volute_inner,outlet_inner,shaft_hole,inlet_inner}
+
+
+	--------------------------------------------
+	-- Make final object
+	final_volute = union{difference{volute_with_outlet,inlet_inner,shaft_hole},
+						 closing_plate,
+						 inlet}
+
+	-- translate the casing so that the impeller is aligned at the middle of the casing space
+	-- Calculation z = (2*r-h_shroud_h_blade)/2)
+	local final_volute = translate(0,0,0.5*(h_shroud+h_blade))*final_volute
+	emit(final_volute,5)
 
 	--------------------------------------------
     -- Create a cut object to show the model
-	local cut = translate(25,25,5)*cube(50,50,50)
-	-- translate align the impeller to the middle of the casing space
-	-- original calculation z = r - ((1+sin(pi/4))-(h_shroud+h_blade)/2)
-	local final_volute = translate(0,0,0.15*r_outlet+0.5*(h_shroud+h_blade))*union{volute, closing_plate, inlet_pipe}
+	local cut = translate(25,25,0)*cube(50,50,50)
 	--emit(difference(final_volute,cut),5)
-	emit(final_volute,5)
 end
 
 
