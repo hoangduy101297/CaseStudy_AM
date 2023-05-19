@@ -1,52 +1,101 @@
+-----------------------------------------------------------------
+-- Case Study Cyper Physical Production Systems using AM (SS2023)
+--
+--  Under guidance of: Prof. Dr. Ing. Stefan Scherbarth
+----------------------------------------------------------------
+--  Group 11: Centrifugal Pump with Semi-open Single Vane Impeller
+--  Members:
+--   Tran Hoang Duy Nguyen   	- 22203230
+--   Thushar Tom   				- 22202815
+--   Sreehari Giridharan   		- 22200251
+--   Alla Durga Nooka Venkatesh - 22207330
+--
+--  Last Update: 19.05.2023
+----------------------------------------------------------------
+
+
+view_list = {
+	{0, "Full view"},
+	{1, "Impeller"},
+	{2, "Volute"}
+}
+
+view = ui_radio("View:",view_list)
+casing_cut = ui_bool("View cut through",false)
+
+-- Global scale
+global_scale = ui_scalar("Global scale",1,.1,3)
+
 -- Parameters for shroud
-r_shroud = 24
-h_shroud = 2
-h_blade  = 10
+r_shroud = ui_scalar("Shroud radius [mm]",25,15,50)
+h_shroud = ui_scalar("Shroud height [mm]",2,1,r_shroud/3)
+h_blade = ui_scalar("Blade height [mm]",r_shroud/4,1,r_shroud/2)
+r_shaft = ui_scalar("Shaft radius [mm]",3,1,r_shroud/4)
 
 -- Bezier control point for blade centerline
-p0_x 	= 0      -- Start angle
-p0_y 	= 5      -- Start radius
-w1 		= 20
-alpha1 	= 15
-p3_x 	= 330    -- Wrap angle
-p3_y 	= 20     -- 
-w2 		= 50
-alpha2 	= -10
+impeller_centerline_list = {
+	{0, "Bézier curve"},
+}
+impeller_centerline_method=ui_radio("Impeller blade centerline design method:",impeller_centerline_list)
+
+p0_x_cl = ui_number("Start-point angle [°]",0,0,90)      -- Start angle
+p0_y_cl = ui_scalar("Start-point radius [mm]",5,0,r_shroud*0.8)     -- Start radius
+w1_cl = ui_number("Weight 1",10,0,30)
+alpha1_cl = ui_number("Alpha 1 [°]",10,-15,15)
+p3_x_cl = ui_number("End-point angle\n(Blade wrap angle) [°]",300,250,360)    -- Wrap angle
+p3_y_cl = ui_scalar("End-point radius [mm]",r_shroud*0.8,p0_y_cl,r_shroud)     -- 
+w2_cl = ui_number("Weight 2",10,0,30)
+alpha2_cl = ui_number("Alpha 2 [°]",-10,-15,15)
+
 
 -- Bezier control point for blade thickness
-p0_x_r 		= 0     -- Start angle
-p0_y_r 		= 2     -- thickness at start point
-w1_r 		= 5
-alpha1_r 	= 5
-p3_x_r 		= p3_x  -- Stop angle, be same as p3_x
-p3_y_r 		= 1    -- Thickness at end point
-w2_r 		= 10
-alpha2_r 	= 0
+impeller_thickness_list = {
+	{0, "Bézier curve "},
+}
+impeller_thickness_method=ui_radio("Impeller blade thickness design method:",impeller_thickness_list)
 
--- Bezier control point for casing
-p0_x_z 		= 180     -- Start angle
-p0_y_z 		= 30    -- Radius at start point
-w1_z 		= 20
-alpha1_z 	= 30
-p3_x_z 		= -180  -- Stop angle
-p3_y_z 		= 40     -- Radius at end point
-w2_z 		= 20
-alpha2_z 	= 0
+p0_x_t = ui_number("Start-point angle [°]\n(inherit from centerline)",p0_x_cl,p0_x_cl,p0_x_cl)     -- Start angle
+p0_y_t = ui_scalar("Start-point thickness [mm]",2,1,r_shroud/5)    -- thickness at start point
+w1_t = ui_number("Weight 1 ",10,0,20)
+alpha1_t = ui_number("Alpha 1 [°] ",0,-15,15)
+p3_x_t = ui_number("End-point angle [°]\n(inherit from centerline)",p3_x_cl,p3_x_cl,p3_x_cl)
+p3_y_t = ui_scalar("End-point thickness [mm]",2,1,r_shroud/5)    -- Thickness at end point
+w2_t = ui_number("Weight 2 ",10,0,20)
+alpha2_t = ui_number("Alpha 2 [°] ",0,-15,15)
+
 
 -- Parameters for casing
-r_outlet 	= 10
-r_inlet 	= 8
-r0_volute 	= 30
-alpha 		= 0.001
-r_center 	= 20
-r_shaft		= 5
-casing_thickness 	= 1
+casing_list = {
+	{0, "Bézier curve  "},
+	{1, "Logarithm  "},
+}
+casing_method = ui_radio("Volute design method:",casing_list)
+casing_thickness =  ui_scalar("Volute thickness [mm]",1,1,3)
+r_outlet = ui_scalar("Outlet radius [mm]",r_shroud/3,r_shroud/5,r_shroud/2)
+r_inlet = ui_scalar("Inlet radius [mm]",r_shroud/5,1,r_shroud/4)
+
+if (casing_method == 0) then
+	p0_x_vl = ui_number("Start-point angle [°]\n(fixed as 180°)",180,180,180)     -- Start angle
+	p0_y_vl = ui_scalar("Start-point volute radius [mm]",r_shroud*1.2,r_shroud*1.2,r_shroud*1.5)    -- thickness at start point
+	w1_vl = ui_number("Weight 1  ",10,0,20)
+	alpha1_vl = ui_number("Alpha 1  [°] ",0,-50,50)
+	p3_x_vl = ui_number("End-point angle [°]\n(fixed as -180°)",-180,-180,-180)
+	p3_y_vl = ui_scalar("End-point volute radius [mm]",r_shroud*1.5,p0_y_vl,r_shroud*1.8)    -- Thickness at end point
+	w2_vl = ui_number("Weight 2  ",10,0,20)
+	alpha2_vl = ui_number("Alpha 2  [°]",0,-50,50)
+elseif (casing_method == 1) then
+	r0_volute = ui_scalar("Volute starting radius [mm]",r_shroud*1.2,r_shroud*1.2,r_shroud*1.5)
+	alpha = ui_number("Alpha ",5,5,12)
+	alpha = alpha*0.0001
+end
+
+-- Internal control params
 n_points_casing 	= 51
 n_points_fillet 	= 51
 
-
 function linspace(start,stop,n_points)
-	-- return [n] = {start ... stop}
+	-- To create a linear spacing between start and stop points, with n_points support points
+	-- return array[n] = {start ... stop}
 	local step = (stop-start)/(n_points-1)
 	local ret = {}
 
@@ -58,8 +107,10 @@ function linspace(start,stop,n_points)
 end
 
 function pol2cart(theta, r)
+	-- To convert Polar coordinates to Cartesian Coordinate
 	-- theta in deg
-	-- return [2][n=#theta] = {{X1 ... Xn},{Y1 ... Yn}}
+	-- param: theta = {}, r = {} with same size [n]
+	-- return array[2][n] = {{X1 ... Xn},{Y1 ... Yn}}
 
 	local XY = {}
 	XY[1] = {}
@@ -70,21 +121,18 @@ function pol2cart(theta, r)
 			XY[2][n] = r[n]*math.sin(math.rad(theta[n])) --Y
 		end
 	else
-		print('Error at pol2cart(), theta and r are not same size')
+		print('Internal error at pol2cart(), theta and r are not same size')
 	end
 	
 	return XY
 end
 
 function drawCircle3(r,pos,n_vector,start_angle,end_angle,n_points)
-    
-    --Gives the coordinates of the circle of radius "r" normal to the 
+    --To compute the coordinates for the circle of radius "r" normal to the 
     -- vector "n_vector" with center at position "pos" from starting angle to ending angle in 3D space
-    -- n_points is the number of support points between start and stop angle
-    -- return [n_points] = {v(x1 y1 z1),...., v(xn yn zn)}
-    --local x = {}
-    --local y = {}
-    --local z = {}
+    -- n_points is the number of support points between start and stop angle (in rad)
+    -- return array[n_points] = {v(x1 y1 z1),...., v(xn yn zn)}
+
     local phi = math.atan2(n_vector[2],n_vector[1]) --Azimuth angle, between X and Y
     local theta = math.atan2(math.sqrt(n_vector[1]^2 + n_vector[2]^2),n_vector[3]) -- Zenith angle, between Z and XY
     
@@ -111,10 +159,11 @@ function drawCircle3(r,pos,n_vector,start_angle,end_angle,n_points)
 end
 
 function Bezier(p0_x,p0_y,w1,alpha1,p3_x,p3_y,w2,alpha2)
+	-- To compute the set of coordinates for the Beziert curve with 4 control points
+	-- 4 control points are represented in form of 2 start/end points and 2 weights/angles
 	-- alpha1 and alpha2 in deg
-	-- fixed step t = 0.01
-	-- X as theta and Y as R
-	-- return [2][n] = {{X1 X2 ... Xn},{Y1 Y1 ... Yn}} with n=1/#t_step
+	-- fixed step t = 0.02
+	-- return array[2][n] = {{X1 X2 ... Xn},{Y1 Y1 ... Yn}} with n=51 (t = 0.02)
 
     local XY= {}
     XY[1] = {}
@@ -131,7 +180,6 @@ function Bezier(p0_x,p0_y,w1,alpha1,p3_x,p3_y,w2,alpha2)
 
 	-- Loop t = 0:0.01:1
 	for t = 0,1.01,0.02 do
-
 		--X
 		XY[1][i] = p0_x*(  -(t^3) + 3*(t^2) - 3*t + 1)
 				 + p1_x*( 3*(t^3) - 6*(t^2) + 3*t    )
@@ -151,81 +199,113 @@ function Bezier(p0_x,p0_y,w1,alpha1,p3_x,p3_y,w2,alpha2)
 end
 
 
-function createImpeller(r_shroud, h_shroud, h_blade, centerline, blade_thickness)
---- Optional: Color input, add later if have time
---- Later: return error code
+function createImpeller()
+	-- Create impeller, required parameters are declared globally
+	-- function also checks for related geometrical constraints
+
+	local center_line_polar = Bezier(p0_x_cl,p0_y_cl,w1_cl,alpha1_cl,p3_x_cl,p3_y_cl,w2_cl,alpha2_cl)
+	local center_line_cart = pol2cart(center_line_polar[1], center_line_polar[2])
+
+	local blade_thickness = Bezier(p0_x_t,p0_y_t,w1_t,alpha1_t,p3_x_t,p3_y_t,w2_t,alpha2_t)
 
 	-- Shroud
 	local shroud = cylinder(r_shroud, h_shroud)
-	emit(shroud)
-
+	local shaft_key = union(cylinder(r_shaft, h_shroud),
+				translate(0,r_shaft,0)*cube(r_shaft/2,r_shaft/2,h_shroud))
+	emit(scale(global_scale)*difference(shroud,shaft_key))
+	emit(scale(global_scale)*shaft_key,3)
 
 	-- Impeller
-	local blade_fraction = {}
-	for i = 1,#centerline[1]-1 do
-		local x1 = centerline[1][i]
-		local y1 = centerline[2][i]
-		local x2 = centerline[1][i+1]
-		local y2 = centerline[2][i+1]
+	local blade_r_plus = {}
+	local blade_r_minus = {}
 
-		local r1 = blade_thickness[2][i]
-		local r2 = blade_thickness[2][i+1]
+	local error_msg = ""
 
+	for i = 1,#center_line_cart[1] do
+		if(center_line_polar[2][i]+blade_thickness[2][i] > r_shroud) then
+			error_msg = "Error! The impeller blade hits the shroud border. \n -> Please adjust Bézier parameters.\n"
+		end
 
-		local cyl_1 = translate(x1,y1,h_shroud)*cylinder(r1, h_blade)
-		local cyl_2 = translate(x2,y2,h_shroud)*cylinder(r2, h_blade)
+		if(blade_thickness[2][i] <= 0) then
+			error_msg = "Error! The impeller blade thickness goes below zero. \n -> Please adjust Bézier parameters.\n"
+		end
 
-		blade_fraction[i] = convex_hull(union(cyl_1,cyl_2))
+		-- Create 2 offset from the centerline, with distance as blade thickness
+		local xy_r_plus = pol2cart({center_line_polar[1][i]}, {center_line_polar[2][i]+blade_thickness[2][i]})
+		local xy_r_minus = pol2cart({center_line_polar[1][i]}, {center_line_polar[2][i]-blade_thickness[2][i]})
+		table.insert(blade_r_plus,v(xy_r_plus[1][1],xy_r_plus[2][1],0))
+		table.insert(blade_r_minus,v(xy_r_minus[1][1],xy_r_minus[2][1],0))
+
 
 	end
 
-	local blade = union(blade_fraction)
-	emit(blade,7)
+	-- Concatenate to make full blade contour
+	for i = #blade_r_minus, 1,-1 do
+		table.insert(blade_r_plus,blade_r_minus[i])
+	end
+
+	-- Finally add half-circles at 2 ends
+	local cir1 = translate(center_line_cart[1][1],center_line_cart[2][1],0)*cylinder(blade_thickness[2][1],h_blade+h_shroud)
+	local cir2 = translate(center_line_cart[1][#center_line_cart[1]],center_line_cart[2][#center_line_cart[1]],0)*cylinder(blade_thickness[2][#blade_thickness[1]],h_blade+h_shroud)
+	local blade = union{linear_extrude(v(0,0,h_blade+h_shroud),blade_r_plus),cir1,cir2}
+
+	print(error_msg)
+
+	-- Add shroud border (not visible), just to make sure the model is displayed as intended
+	local shroud_border = cylinder(r_shroud, h_shroud+h_blade)
+	blade = intersection(blade,shroud_border)
+
+	emit(scale(global_scale)*blade,7)
 
 end
 
-function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, casing_thickness, n_points_casing, n_points_fillet)
-	-- r_outlet/ r_inlet: radius of the outlet/inlet
-	-- r0_volute, alpha: in the function r_volute(i) = r0_volute*exp(alpha*theta(i))
-	-- r_inner: radius of the center hub
-	-- casing_thickness: casing thickness
-	-- n_points_casing: no of support points for the casing outer shape
-	-- n_points_fillet: no of support points for the fillet of the casing
+function createCasing()
+	-- Create volute casing, required parameters are declared globally
+	-- function also checks for related geometrical constraints
 
 	local theta = linspace(180,-180,n_points_casing)
 
-	--------------------------------------------
-	-- Make the volute from exponential function
-	-- local r_volute_outer = {}
-	-- local r_volute_centerline = {}
-
-	-- for i = 1, n_points_casing do
-	-- 	r_volute_outer[i] = r0_volute*math.exp(alpha*(180-theta[i]))
-
-	-- 	-- offset to the centerline so that the fillet lay on r_volute_outer 
-	-- 	r_volute_centerline[i] = r_volute_outer[i] - r_outlet-casing_thickness
-	-- end
-
- --    -- convert r_volute_offset to Cartesian, [2][i] = {{X...},{Y...}}
-	-- local xy_volute_centerline = pol2cart(theta,r_volute_centerline) 
-
-	--------------------------------------------
-	-- Make the volute from Bezier curve
+	local xy_volute_centerline = {}
 	local r_volute_outer = {}
 	local r_volute_centerline = {}
+	local error_msg = ""
 
-	r_volute_outer = Bezier(p0_x_z,p0_y_z,w1_z,alpha1_z,p3_x_z,p3_y_z,w2_z,alpha2_z)
-	for i = 1, #r_volute_outer[1] do
+	if (casing_method == 0) then 
+		-- Make the volute from Bezier curve
+		r_volute_outer = Bezier(p0_x_vl,p0_y_vl,w1_vl,alpha1_vl,p3_x_vl,p3_y_vl,w2_vl,alpha2_vl)
+		for i = 1, #r_volute_outer[1] do
 
-		-- offset to the centerline so that the fillet lay on r_volute 
-		r_volute_centerline[i] = r_volute_outer[2][i] - r_outlet
+			-- offset to the centerline so that the fillet lay on r_volute 
+			r_volute_centerline[i] = r_volute_outer[2][i] - r_outlet
+
+			-- Check if the shroud hits the volute, geometrically proven
+			if( math.sqrt((r_shroud-r_volute_centerline[i])^2 +((h_shroud+h_blade)*0.5)^2) >= r_outlet ) then
+				error_msg = "Error! The impeller shroud hits the volute. \n -> Please either increase volute starting radius or decrease impeller shroud radius\n"
+			end
+
+		end
+		print(error_msg)
+
+		xy_volute_centerline = pol2cart(r_volute_outer[1], r_volute_centerline)
+	elseif (casing_method == 1) then
+		-- Make the volute from logarithm function
+		for i = 1, n_points_casing do
+			r_volute_outer[i] = r0_volute*math.exp(alpha*(180-theta[i]))
+
+			-- offset to the centerline so that the fillet lay on r_volute_outer 
+			r_volute_centerline[i] = r_volute_outer[i] - r_outlet
+
+			-- Dont need to check if the shroud hits the volute, because radius always increases due to logarithm function
+		end
+
+	    -- convert r_volute_offset to Cartesian, [2][i] = {{X...},{Y...}}
+		xy_volute_centerline = pol2cart(theta,r_volute_centerline) 
 	end
-	local xy_volute_centerline = pol2cart(r_volute_outer[1], r_volute_centerline)
-	--------------------------------------------
 
 	local xyz_volute_inner = {}
 	local xyz_volute_outer = {}
 
+	-- Draw circle contours in 3D, later use sections_extrude to connect them
 	for i = 1, n_points_casing do
 		-- normal vector
 		local n_vect = {-math.sin(math.rad(theta[i])), math.cos(math.rad(theta[i])), 0}
@@ -245,38 +325,37 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 		-- Add 2 more points in the center, to create a solid body starting from the center
 		table.insert(xyz_volute_outer[i],v(0,0,r_outlet+casing_thickness))
 		table.insert(xyz_volute_outer[i],v(0,0,-r_outlet-casing_thickness))
-
 	end
-	volute_outer = sections_extrude(xyz_volute_outer)
-	volute_inner = sections_extrude(xyz_volute_inner)
-	volute_main_part = difference(volute_outer,volute_inner)
+
+	local volute_outer = sections_extrude(xyz_volute_outer)
+	local volute_inner = sections_extrude(xyz_volute_inner)
+	local volute_main_part = difference(volute_outer,volute_inner)
 
 	--------------------------------------------
 	----------- Make the outlet ----------------
-	outlet_outer = translate(-r_volute_centerline[#r_volute_centerline],0,0)*rotate(-90,0,0)*cylinder(r_outlet+casing_thickness,50)
-	outlet_end = translate(-r_volute_centerline[#r_volute_centerline],50,0)*rotate(-90,0,0)*cylinder(1.5*(r_outlet+casing_thickness),3)
-	outlet_inner = translate(-r_volute_centerline[#r_volute_centerline],0,0)*rotate(-90,0,0)*cylinder(r_outlet,500)
-	outlet = difference(union(outlet_outer,outlet_end),outlet_inner)
+	local outlet_outer = translate(-r_volute_centerline[#r_volute_centerline],0,0)*rotate(-90,0,0)*cylinder(r_outlet+casing_thickness,50)
+	local outlet_end = translate(-r_volute_centerline[#r_volute_centerline],50,0)*rotate(-90,0,0)*cylinder(1.5*(r_outlet+casing_thickness),3)
+	local outlet_inner = translate(-r_volute_centerline[#r_volute_centerline],0,0)*rotate(-90,0,0)*cylinder(r_outlet,500)
+	local outlet = difference(union(outlet_outer,outlet_end),outlet_inner)
 
 
 	-- Matching the outlet with the volute
-	part1 = difference(volute_main_part,outlet_inner)
+	local part1 = difference(volute_main_part,outlet_inner)
 
-	part2 = difference(outlet,volute_inner)
+	local part2 = difference(outlet,volute_inner)
 
-	volute_with_outlet = union(part1,part2)
+	local volute_with_outlet = union(part1,part2)
 
 	--------------------------------------------
 	-- Make the shaft hole
-	shaft_hole = translate(0,0,-casing_thickness-r_outlet)*cylinder(r_shaft,casing_thickness)
-
+	local shaft_hole = translate(0,0,-casing_thickness-r_outlet)*cylinder(r_shaft*1.2,casing_thickness)
 
 	--------------------------------------------
 	-- Make the inlet
-	inlet_inner = translate(0,0,r_outlet)*cylinder(r_inlet,8+casing_thickness)
-	inlet_outer = translate(0,0,r_outlet+casing_thickness)*cylinder(r_inlet+casing_thickness,5)
-	inlet_end = translate(0,0,r_outlet+casing_thickness+5)*cylinder((r_inlet+casing_thickness)*1.5,3)
-	inlet = difference(union(inlet_end,inlet_outer),inlet_inner)
+	local inlet_inner = translate(0,0,r_outlet)*cylinder(r_inlet,8+casing_thickness)
+	local inlet_outer = translate(0,0,r_outlet+casing_thickness)*cylinder(r_inlet+casing_thickness,5)
+	local inlet_end = translate(0,0,r_outlet+casing_thickness+5)*cylinder((r_inlet+casing_thickness)*1.5,3)
+	local inlet = difference(union(inlet_end,inlet_outer),inlet_inner)
 
 	--------------------------------------------
 	---- Make a plate to fill the gap
@@ -289,36 +368,46 @@ function createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, ca
 
 	--------------------------------------------
 	-- Make final object
-	final_volute = union{difference{volute_with_outlet,inlet_inner,shaft_hole},
+	local final_volute = union{difference{volute_with_outlet,inlet_inner,shaft_hole},
 						 closing_plate,
 						 inlet}
 
 	-- translate the casing so that the impeller is aligned at the middle of the casing space
 	-- Calculation z = (2*r-h_shroud_h_blade)/2)
 	local final_volute = translate(0,0,0.5*(h_shroud+h_blade))*final_volute
-	emit(final_volute,5)
+
 
 	--------------------------------------------
     -- Create a cut object to show the model
-	local cut = translate(25,25,0)*cube(50,50,50)
-	--emit(difference(final_volute,cut),5)
+	local cut = translate(-60,0,0.5*(h_shroud+h_blade))*cube(120,120,100)
+
+	if(casing_cut == false) then
+		emit(scale(global_scale)*final_volute,5)
+	else
+		emit(scale(global_scale)*difference(final_volute,cut),5)
+	end
+
 end
-
-
-
 
 -------------------------------------------------------------------
 -- Main part to create the model
 
---Impeller
-center_line_polar = Bezier(p0_x,p0_y,w1,alpha1,p3_x,p3_y,w2,alpha2)
-center_line_cart = pol2cart(center_line_polar[1], center_line_polar[2])
+-- Check if the volute is high enough
+if( h_shroud + h_blade >= 2*r_outlet) then
+	print("Error! The impeller height is larger than the volute space. \n -> Please either increase outlet radius or decrease impeller shroud height/ blade height\n")
+end
 
-blade_thickness_polar = Bezier(p0_x_r,p0_y_r,w1_r,alpha1_r,p3_x_r,p3_y_r,w2_r,alpha2_r)
+-- Emit depending on chosen view
+if(view == 0) then
+	createImpeller()
+	createCasing()
+elseif (view == 1) then
+	--Impeller
+	createImpeller()
+elseif (view == 2) then
+	-- Casing
+	createCasing()	
+end
 
 
-createImpeller(r_shroud,h_shroud,h_blade,center_line_cart,blade_thickness_polar)
 
-
--- Casing
-createCasing(r_outlet, r_inlet, r0_volute, alpha, r_center, r_shaft, casing_thickness, n_points_casing, n_points_fillet)
