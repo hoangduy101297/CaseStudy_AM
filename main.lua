@@ -27,7 +27,7 @@ casing_cut = ui_bool("View cut through",false)
 global_scale = ui_scalar("Global scale",1,.1,3)
 
 -- Parameters for shroud
-r_shroud = ui_scalar("Shroud radius [mm]",25,15,50)
+r_shroud = ui_scalar("Shroud radius [mm]",25,15,40)
 h_shroud = ui_scalar("Shroud height [mm]",2,1,r_shroud/3)
 h_blade = ui_scalar("Blade height [mm]",r_shroud/4,1,r_shroud/2)
 r_shaft = ui_scalar("Shaft radius [mm]",3,1,r_shroud/4)
@@ -39,11 +39,11 @@ impeller_centerline_list = {
 impeller_centerline_method=ui_radio("Impeller blade centerline design method:",impeller_centerline_list)
 
 p0_x_cl = ui_number("Start-point angle [°]",0,0,90)      -- Start angle
-p0_y_cl = ui_scalar("Start-point radius [mm]",5,0,r_shroud*0.8)     -- Start radius
+p0_y_cl = ui_scalar("Start-point radius [mm]",5,0,r_shroud*0.4)     -- Start radius
 w1_cl = ui_number("Weight 1",10,0,30)
 alpha1_cl = ui_number("Alpha 1 [°]",10,-15,15)
 p3_x_cl = ui_number("End-point angle\n(Blade wrap angle) [°]",300,250,360)    -- Wrap angle
-p3_y_cl = ui_scalar("End-point radius [mm]",r_shroud*0.8,p0_y_cl,r_shroud)     -- 
+p3_y_cl = ui_scalar("End-point radius [mm]",r_shroud*0.8,r_shroud*0.7,r_shroud-1.5)     -- 
 w2_cl = ui_number("Weight 2",10,0,30)
 alpha2_cl = ui_number("Alpha 2 [°]",-10,-15,15)
 
@@ -55,11 +55,11 @@ impeller_thickness_list = {
 impeller_thickness_method=ui_radio("Impeller blade thickness design method:",impeller_thickness_list)
 
 p0_x_t = ui_number("Start-point angle [°]\n(inherit from centerline)",p0_x_cl,p0_x_cl,p0_x_cl)     -- Start angle
-p0_y_t = ui_scalar("Start-point thickness [mm]",2,1,r_shroud/5)    -- thickness at start point
+p0_y_t = ui_scalar("Start-point thickness [mm]",2,1,r_shroud/10)    -- thickness at start point
 w1_t = ui_number("Weight 1 ",10,0,20)
 alpha1_t = ui_number("Alpha 1 [°] ",0,-15,15)
 p3_x_t = ui_number("End-point angle [°]\n(inherit from centerline)",p3_x_cl,p3_x_cl,p3_x_cl)
-p3_y_t = ui_scalar("End-point thickness [mm]",2,1,r_shroud/5)    -- Thickness at end point
+p3_y_t = ui_scalar("End-point thickness [mm]",2,1,r_shroud/10)    -- Thickness at end point
 w2_t = ui_number("Weight 2 ",10,0,20)
 alpha2_t = ui_number("Alpha 2 [°] ",0,-15,15)
 
@@ -69,9 +69,11 @@ casing_list = {
 	{0, "Bézier curve  "},
 	{1, "Logarithm  "},
 }
+
 casing_method = ui_radio("Volute design method:",casing_list)
 casing_thickness =  ui_scalar("Volute thickness [mm]",1,1,3)
-r_outlet = ui_scalar("Outlet radius [mm]",r_shroud/3,r_shroud/5,r_shroud/2)
+--r_outlet = ui_scalar("Outlet radius [mm]",r_shroud/3,r_shroud/5,r_shroud/2)
+r_outlet = ui_scalar("Outlet radius [mm]",(h_shroud+h_blade+2)*0.7,(h_shroud+h_blade+2)/2,(h_shroud+h_blade+2))
 r_inlet = ui_scalar("Inlet radius [mm]",r_shroud/5,1,r_shroud/4)
 
 if (casing_method == 0) then
