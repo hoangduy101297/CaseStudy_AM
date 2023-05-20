@@ -79,6 +79,7 @@ casing_thickness =  ui_scalar("Volute thickness [mm]",1,1,3)
 --r_outlet = ui_scalar("Outlet radius [mm]",r_shroud/4,r_shroud/5,r_shroud/3)
 r_outlet = ui_scalar("Outlet radius [mm]",(h_shroud+h_blade+2)*0.7,(h_shroud+h_blade+2)/2,(h_shroud+h_blade+2))
 r_inlet = ui_scalar("Inlet radius [mm]",r_shroud/5,1,r_shroud/4)
+volute_clearence = ui_number("Volute clearence",8,5,12)
 
 if (casing_method == 0) then
 	p0_x_vl = ui_number("Start-point angle [°]\n(fixed as 180°)",180,180,180)     -- Start angle
@@ -253,8 +254,8 @@ function createImpeller()
 	end
 
 	-- Finally add half-circles at 2 ends
-	local cir1 = translate(center_line_cart[1][1],center_line_cart[2][1],0)*cylinder(blade_thickness[2][1],h_blade+h_shroud)
-	local cir2 = translate(center_line_cart[1][#center_line_cart[1]],center_line_cart[2][#center_line_cart[1]],0)*cylinder(blade_thickness[2][#blade_thickness[1]],h_blade+h_shroud)
+	local cir1 = translate(center_line_cart[1][1],center_line_cart[2][1],0)*cylinder(blade_thickness[2][1]-0.05,h_blade+h_shroud)
+	local cir2 = translate(center_line_cart[1][#center_line_cart[1]],center_line_cart[2][#center_line_cart[1]],0)*cylinder(blade_thickness[2][#blade_thickness[1]]-0.05,h_blade+h_shroud)
 	local blade = union{linear_extrude(v(0,0,h_blade+h_shroud),blade_r_plus),cir1,cir2}
 
 	print(error_msg)
@@ -281,11 +282,12 @@ function createCasing()
 	if (casing_method == 0) then 
 		-- Make the volute from Bezier curve
 		r_volute_outer = Bezier(p0_x_vl,p0_y_vl,w1_vl,alpha1_vl,p3_x_vl,p3_y_vl,w2_vl,alpha2_vl)
+		
 		for i = 1, #r_volute_outer[1] do
-
+			
 			-- offset to the centerline so that the fillet lay on r_volute 
-			r_volute_centerline[i] = r_volute_outer[2][i] - r_outlet
-
+			r_volute_centerline[i] = r_volute_outer[2][i] - r_outlet + volute_clearence
+			
 			-- Check if the shroud hits the volute, geometrically proven
 			if (r_shroud > r_volute_centerline[i]) then
 				if( math.sqrt((r_shroud-r_volute_centerline[i])^2 +((h_shroud+h_blade)*0.5)^2) >= r_outlet ) then
