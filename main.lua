@@ -24,12 +24,16 @@ view = ui_radio("View:",view_list)
 casing_cut = ui_bool("View cut through",false)
 
 -- Global scale
-global_scale = ui_scalar("Global scale",1,.1,3)
+global_scale = ui_scalar("Global scale",1,0.5,2)
 
 -- Parameters for shroud
-r_shroud = ui_scalar("Shroud radius [mm]",25,15,40)
-h_shroud = ui_scalar("Shroud height [mm]",2,1,r_shroud/3)
-h_blade = ui_scalar("Blade height [mm]",r_shroud/4,1,r_shroud/2)
+r_shroud = ui_scalar("Shroud radius [mm]",25,20,40)
+h_shroud = ui_scalar("Shroud thickness [mm]",1,1,2)
+h_blade = ui_scalar("Blade height [mm]",r_shroud/4,3,r_shroud/3)
+impeller_spinning = ui_numberBox("Impeller spinning",1)
+-- r_outlet from r_shroud/5 to r_shroud/3
+-- casing_gap = ui_scalar("Gap between impeller and housing [mm]",3,2,4)
+
 r_shaft = ui_scalar("Shaft radius [mm]",3,1,r_shroud/4)
 
 -- Bezier control point for blade centerline
@@ -43,7 +47,7 @@ p0_y_cl = ui_scalar("Start-point radius [mm]",5,0,r_shroud*0.4)     -- Start rad
 w1_cl = ui_number("Weight 1",10,0,30)
 alpha1_cl = ui_number("Alpha 1 [°]",10,-15,15)
 p3_x_cl = ui_number("End-point angle\n(Blade wrap angle) [°]",300,250,360)    -- Wrap angle
-p3_y_cl = ui_scalar("End-point radius [mm]",r_shroud*0.8,r_shroud*0.7,r_shroud-1.5)     -- 
+p3_y_cl = ui_scalar("End-point radius [mm]",r_shroud*0.8,r_shroud*0.7,r_shroud-2)     -- 
 w2_cl = ui_number("Weight 2",10,0,30)
 alpha2_cl = ui_number("Alpha 2 [°]",-10,-15,15)
 
@@ -55,11 +59,11 @@ impeller_thickness_list = {
 impeller_thickness_method=ui_radio("Impeller blade thickness design method:",impeller_thickness_list)
 
 p0_x_t = ui_number("Start-point angle [°]\n(inherit from centerline)",p0_x_cl,p0_x_cl,p0_x_cl)     -- Start angle
-p0_y_t = ui_scalar("Start-point thickness [mm]",2,1,r_shroud/10)    -- thickness at start point
+p0_y_t = ui_scalar("Start-point thickness [mm]",1.5,1,r_shroud/10)    -- thickness at start point
 w1_t = ui_number("Weight 1 ",10,0,20)
 alpha1_t = ui_number("Alpha 1 [°] ",0,-15,15)
 p3_x_t = ui_number("End-point angle [°]\n(inherit from centerline)",p3_x_cl,p3_x_cl,p3_x_cl)
-p3_y_t = ui_scalar("End-point thickness [mm]",2,1,r_shroud/10)    -- Thickness at end point
+p3_y_t = ui_scalar("End-point thickness [mm]",1.5,1,r_shroud/10)    -- Thickness at end point
 w2_t = ui_number("Weight 2 ",10,0,20)
 alpha2_t = ui_number("Alpha 2 [°] ",0,-15,15)
 
@@ -72,7 +76,7 @@ casing_list = {
 
 casing_method = ui_radio("Volute design method:",casing_list)
 casing_thickness =  ui_scalar("Volute thickness [mm]",1,1,3)
---r_outlet = ui_scalar("Outlet radius [mm]",r_shroud/3,r_shroud/5,r_shroud/2)
+--r_outlet = ui_scalar("Outlet radius [mm]",r_shroud/4,r_shroud/5,r_shroud/3)
 r_outlet = ui_scalar("Outlet radius [mm]",(h_shroud+h_blade+2)*0.7,(h_shroud+h_blade+2)/2,(h_shroud+h_blade+2))
 r_inlet = ui_scalar("Inlet radius [mm]",r_shroud/5,1,r_shroud/4)
 
@@ -80,11 +84,11 @@ if (casing_method == 0) then
 	p0_x_vl = ui_number("Start-point angle [°]\n(fixed as 180°)",180,180,180)     -- Start angle
 	p0_y_vl = ui_scalar("Start-point volute radius [mm]",r_shroud*1.2,r_shroud*1.2,r_shroud*1.5)    -- thickness at start point
 	w1_vl = ui_number("Weight 1  ",10,0,20)
-	alpha1_vl = ui_number("Alpha 1  [°] ",0,-50,50)
+	alpha1_vl = ui_number("Alpha 1  [°] ",0,-30,30)
 	p3_x_vl = ui_number("End-point angle [°]\n(fixed as -180°)",-180,-180,-180)
 	p3_y_vl = ui_scalar("End-point volute radius [mm]",r_shroud*1.5,p0_y_vl,r_shroud*1.8)    -- Thickness at end point
 	w2_vl = ui_number("Weight 2  ",10,0,20)
-	alpha2_vl = ui_number("Alpha 2  [°]",0,-50,50)
+	alpha2_vl = ui_number("Alpha 2  [°]",0,-30,30)
 elseif (casing_method == 1) then
 	r0_volute = ui_scalar("Volute starting radius [mm]",r_shroud*1.2,r_shroud*1.2,r_shroud*1.5)
 	alpha = ui_number("Alpha ",5,5,12)
@@ -95,6 +99,8 @@ end
 n_points_casing 	= 51
 n_points_fillet 	= 51
 
+
+--------------------------------------------------
 function linspace(start,stop,n_points)
 	-- To create a linear spacing between start and stop points, with n_points support points
 	-- return array[n] = {start ... stop}
@@ -205,19 +211,19 @@ function createImpeller()
 	-- Create impeller, required parameters are declared globally
 	-- function also checks for related geometrical constraints
 
+	-- Shroud
+	local shroud = cylinder(r_shroud, h_shroud)
+	local shaft_key = union(cylinder(r_shaft, h_shroud),
+				translate(0,r_shaft,0)*cube(r_shaft/2,r_shaft/2,h_shroud))
+	emit(scale(global_scale)*rotate(0,0,impeller_spinning*360/100)*difference(shroud,shaft_key))
+	emit(scale(global_scale)*rotate(0,0,impeller_spinning*360/100)*shaft_key,3)
+
+	-- Blade
 	local center_line_polar = Bezier(p0_x_cl,p0_y_cl,w1_cl,alpha1_cl,p3_x_cl,p3_y_cl,w2_cl,alpha2_cl)
 	local center_line_cart = pol2cart(center_line_polar[1], center_line_polar[2])
 
 	local blade_thickness = Bezier(p0_x_t,p0_y_t,w1_t,alpha1_t,p3_x_t,p3_y_t,w2_t,alpha2_t)
 
-	-- Shroud
-	local shroud = cylinder(r_shroud, h_shroud)
-	local shaft_key = union(cylinder(r_shaft, h_shroud),
-				translate(0,r_shaft,0)*cube(r_shaft/2,r_shaft/2,h_shroud))
-	emit(scale(global_scale)*difference(shroud,shaft_key))
-	emit(scale(global_scale)*shaft_key,3)
-
-	-- Impeller
 	local blade_r_plus = {}
 	local blade_r_minus = {}
 
@@ -257,7 +263,7 @@ function createImpeller()
 	local shroud_border = cylinder(r_shroud, h_shroud+h_blade)
 	blade = intersection(blade,shroud_border)
 
-	emit(scale(global_scale)*blade,7)
+	emit(scale(global_scale)*rotate(0,0,impeller_spinning*360/100)*blade,7)
 
 end
 
@@ -270,7 +276,7 @@ function createCasing()
 	local xy_volute_centerline = {}
 	local r_volute_outer = {}
 	local r_volute_centerline = {}
-	local error_msg = ""
+	local error_msg = "" 
 
 	if (casing_method == 0) then 
 		-- Make the volute from Bezier curve
@@ -281,8 +287,10 @@ function createCasing()
 			r_volute_centerline[i] = r_volute_outer[2][i] - r_outlet
 
 			-- Check if the shroud hits the volute, geometrically proven
-			if( math.sqrt((r_shroud-r_volute_centerline[i])^2 +((h_shroud+h_blade)*0.5)^2) >= r_outlet ) then
-				error_msg = "Error! The impeller shroud hits the volute. \n -> Please either increase volute starting radius or decrease impeller shroud radius\n"
+			if (r_shroud > r_volute_centerline[i]) then
+				if( math.sqrt((r_shroud-r_volute_centerline[i])^2 +((h_shroud+h_blade)*0.5)^2) >= r_outlet ) then
+					error_msg = "Error! The impeller shroud hits the volute. \n -> Please either increase volute starting radius or decrease impeller shroud radius\n"
+				end
 			end
 
 		end
@@ -335,11 +343,10 @@ function createCasing()
 
 	--------------------------------------------
 	----------- Make the outlet ----------------
-	local outlet_outer = translate(-r_volute_centerline[#r_volute_centerline],0,0)*rotate(-90,0,0)*cylinder(r_outlet+casing_thickness,50)
-	local outlet_end = translate(-r_volute_centerline[#r_volute_centerline],50,0)*rotate(-90,0,0)*cylinder(1.5*(r_outlet+casing_thickness),3)
-	local outlet_inner = translate(-r_volute_centerline[#r_volute_centerline],0,0)*rotate(-90,0,0)*cylinder(r_outlet,500)
+	local outlet_outer = translate(-r_volute_centerline[#r_volute_centerline],0,0)*rotate(-90,0,0)*cylinder(r_outlet+casing_thickness,r_volute_centerline[1]*1.2)
+	local outlet_end = translate(-r_volute_centerline[#r_volute_centerline],r_volute_centerline[1]*1.2,0)*rotate(-90,0,0)*cylinder(1.5*(r_outlet+casing_thickness),3)
+	local outlet_inner = translate(-r_volute_centerline[#r_volute_centerline],0,0)*rotate(-90,0,0)*cylinder(r_outlet,r_volute_centerline[1]*1.2+3)
 	local outlet = difference(union(outlet_outer,outlet_end),outlet_inner)
-
 
 	-- Matching the outlet with the volute
 	local part1 = difference(volute_main_part,outlet_inner)
@@ -376,12 +383,12 @@ function createCasing()
 
 	-- translate the casing so that the impeller is aligned at the middle of the casing space
 	-- Calculation z = (2*r-h_shroud_h_blade)/2)
-	local final_volute = translate(0,0,0.5*(h_shroud+h_blade))*final_volute
+	final_volute = translate(0,0,0.5*(h_shroud+h_blade))*final_volute
 
 
 	--------------------------------------------
     -- Create a cut object to show the model
-	local cut = translate(-60,0,0.5*(h_shroud+h_blade))*cube(120,120,100)
+	local cut = translate(-75*global_scale,0,0.5*(h_shroud+h_blade))*scale(global_scale)*cube(150,150,100)
 
 	if(casing_cut == false) then
 		emit(scale(global_scale)*final_volute,5)
@@ -401,6 +408,7 @@ end
 
 -- Emit depending on chosen view
 if(view == 0) then
+	-- Full view
 	createImpeller()
 	createCasing()
 elseif (view == 1) then
@@ -410,6 +418,3 @@ elseif (view == 2) then
 	-- Casing
 	createCasing()	
 end
-
-
-
