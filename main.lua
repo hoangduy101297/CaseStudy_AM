@@ -10,7 +10,7 @@
 --   Sreehari Giridharan   		- 22200251
 --   Alla Durga Nooka Venkatesh - 22207330
 --
---  Last Update: 19.05.2023
+--  Last Update: 21.05.2023
 ----------------------------------------------------------------
 
 
@@ -27,6 +27,8 @@ casing_cut = ui_bool("View cut through",false)
 global_scale = ui_scalar("Global scale",1,0.5,2)
 
 -- Parameters for shroud
+
+spline_shroud_gap = 2
 r_shroud = ui_scalar("Shroud radius [mm]",25,20,40)
 h_shroud = ui_scalar("Shroud thickness [mm]",1,1,2)
 h_blade = ui_scalar("Blade height [mm]",r_shroud/4,3,r_shroud/3)
@@ -43,11 +45,11 @@ impeller_centerline_list = {
 impeller_centerline_method=ui_radio("Impeller blade centerline design method:",impeller_centerline_list)
 
 p0_x_cl = ui_number("Start-point angle [°]",0,0,90)      -- Start angle
-p0_y_cl = ui_scalar("Start-point radius [mm]",5,0,r_shroud*0.4)     -- Start radius
+p0_y_cl = ui_scalar("Start-point radius [mm]",5,2.785,r_shroud*0.4)     -- Start radius
 w1_cl = ui_number("Weight 1",10,0,30)
 alpha1_cl = ui_number("Alpha 1 [°]",10,-15,15)
 p3_x_cl = ui_number("End-point angle\n(Blade wrap angle) [°]",300,250,360)    -- Wrap angle
-p3_y_cl = ui_scalar("End-point radius [mm]",r_shroud*0.8,r_shroud*0.7,r_shroud-2)     -- 
+p3_y_cl = ui_scalar("End-point radius [mm]",r_shroud*0.8,r_shroud*0.7,r_shroud-(r_shroud/10))     -- 
 w2_cl = ui_number("Weight 2",10,0,30)
 alpha2_cl = ui_number("Alpha 2 [°]",-10,-15,15)
 
@@ -60,12 +62,12 @@ impeller_thickness_method=ui_radio("Impeller blade thickness design method:",imp
 
 p0_x_t = ui_number("Start-point angle [°]\n(inherit from centerline)",p0_x_cl,p0_x_cl,p0_x_cl)     -- Start angle
 p0_y_t = ui_scalar("Start-point thickness [mm]",1.5,1,r_shroud/10)    -- thickness at start point
-w1_t = ui_number("Weight 1 ",10,0,20)
-alpha1_t = ui_number("Alpha 1 [°] ",0,-15,15)
+w1_t = ui_number("Weight 1 ",5,3,7)
+alpha1_t = ui_number("Alpha 1 [°] ",0,-6,15)
 p3_x_t = ui_number("End-point angle [°]\n(inherit from centerline)",p3_x_cl,p3_x_cl,p3_x_cl)
 p3_y_t = ui_scalar("End-point thickness [mm]",1.5,1,r_shroud/10)    -- Thickness at end point
-w2_t = ui_number("Weight 2 ",10,0,20)
-alpha2_t = ui_number("Alpha 2 [°] ",0,-15,15)
+w2_t = ui_number("Weight 2 ",5,3,7)
+alpha2_t = ui_number("Alpha 2 [°] ",0,-6,15)
 
 
 -- Parameters for casing
@@ -83,13 +85,12 @@ r_inlet = ui_scalar("Inlet radius [mm]",r_shroud/5,1,r_shroud/4)
 if (casing_method == 0) then
 	p0_x_vl = ui_number("Start-point angle [°]\n(fixed as 180°)",180,180,180)     -- Start angle
 	p0_y_vl = ui_scalar("Start-point volute radius [mm]",r_shroud*1.2,r_shroud*1.2,r_shroud*1.5)    -- thickness at start point
-	w1_vl = ui_number("Weight 1  ",10,0,20)
-	alpha1_vl = ui_number("Alpha 1  [°] ",0,-30,30)
+	w1_vl = ui_number("Weight 1  ",3,0,10)
+	alpha1_vl = ui_number("Alpha 1  [°] ",0,-15,15)
 	p3_x_vl = ui_number("End-point angle [°]\n(fixed as -180°)",-180,-180,-180)
 	p3_y_vl = ui_scalar("End-point volute radius [mm]",r_shroud*1.5,p0_y_vl,r_shroud*1.8)    -- Thickness at end point
-	w2_vl = ui_number("Weight 2  ",10,0,20)
-	alpha2_vl = ui_number("Alpha 2  [°]",0,-30,30)
-	volute_clearence = ui_number("Volute-Shroud gap",8,5,12)
+	w2_vl = ui_number("Weight 2  ",3,0,10)
+	alpha2_vl = ui_number("Alpha 2  [°]",0,-15,15)
 
 elseif (casing_method == 1) then
 	r0_volute = ui_scalar("Volute starting radius [mm]",r_shroud*1.2,r_shroud*1.2,r_shroud*1.5)
@@ -214,7 +215,7 @@ function createImpeller()
 	-- function also checks for related geometrical constraints
 
 	-- Shroud
-	local shroud = cylinder(r_shroud, h_shroud)
+	local shroud = cylinder(r_shroud + spline_shroud_gap, h_shroud)
 	local shaft_key = union(cylinder(r_shaft, h_shroud),
 				translate(0,r_shaft,0)*cube(r_shaft/2,r_shaft/2,h_shroud))
 	emit(scale(global_scale)*rotate(0,0,impeller_spinning*360/100)*difference(shroud,shaft_key))
@@ -223,7 +224,7 @@ function createImpeller()
 	-- Blade
 	local center_line_polar = Bezier(p0_x_cl,p0_y_cl,w1_cl,alpha1_cl,p3_x_cl,p3_y_cl,w2_cl,alpha2_cl)
 	local center_line_cart = pol2cart(center_line_polar[1], center_line_polar[2])
-
+	
 	local blade_thickness = Bezier(p0_x_t,p0_y_t,w1_t,alpha1_t,p3_x_t,p3_y_t,w2_t,alpha2_t)
 
 	local blade_r_plus = {}
@@ -287,7 +288,7 @@ function createCasing()
 		for i = 1, #r_volute_outer[1] do
 			
 			-- offset to the centerline so that the fillet lay on r_volute 
-			r_volute_centerline[i] = r_volute_outer[2][i] - r_outlet + volute_clearence
+			r_volute_centerline[i] = r_volute_outer[2][i] - r_outlet 
 			
 			-- Check if the shroud hits the volute, geometrically proven
 			if (r_shroud > r_volute_centerline[i]) then
