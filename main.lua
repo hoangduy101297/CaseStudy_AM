@@ -79,7 +79,6 @@ casing_thickness =  ui_scalar("Volute thickness [mm]",1,1,3)
 --r_outlet = ui_scalar("Outlet radius [mm]",r_shroud/4,r_shroud/5,r_shroud/3)
 r_outlet = ui_scalar("Outlet radius [mm]",(h_shroud+h_blade+2)*0.7,(h_shroud+h_blade+2)/2,(h_shroud+h_blade+2))
 r_inlet = ui_scalar("Inlet radius [mm]",r_shroud/5,1,r_shroud/4)
-volute_clearence = ui_number("Volute clearence",8,5,12)
 
 if (casing_method == 0) then
 	p0_x_vl = ui_number("Start-point angle [°]\n(fixed as 180°)",180,180,180)     -- Start angle
@@ -90,6 +89,8 @@ if (casing_method == 0) then
 	p3_y_vl = ui_scalar("End-point volute radius [mm]",r_shroud*1.5,p0_y_vl,r_shroud*1.8)    -- Thickness at end point
 	w2_vl = ui_number("Weight 2  ",10,0,20)
 	alpha2_vl = ui_number("Alpha 2  [°]",0,-30,30)
+	volute_clearence = ui_number("Volute-Shroud gap",8,5,12)
+
 elseif (casing_method == 1) then
 	r0_volute = ui_scalar("Volute starting radius [mm]",r_shroud*1.2,r_shroud*1.2,r_shroud*1.5)
 	alpha = ui_number("Alpha ",5,5,12)
